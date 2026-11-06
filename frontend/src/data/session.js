@@ -4,6 +4,13 @@ import { userResource } from "./user"
 import { employeeResource } from "./employee"
 import router from "@/router"
 
+// The landing portal under mPass SSO, where a Frappe-only logout would sign the user
+// straight back in; null without SSO.
+export function mpassPortalUrl() {
+	const url = window.frappe?.boot?.mpass_logout_url
+	return typeof url === "string" && url.startsWith("http") ? url : null
+}
+
 export function sessionUser() {
 	let cookies = new URLSearchParams(document.cookie.split("; ").join("&"))
 	let _sessionUser = cookies.get("user_id")
@@ -37,6 +44,12 @@ export const session = reactive({
 	logout: createResource({
 		url: "logout",
 		onSuccess() {
+			const portal = mpassPortalUrl()
+			if (portal) {
+				window.location.href = portal
+				return
+			}
+
 			userResource.reset()
 			employeeResource.reset()
 

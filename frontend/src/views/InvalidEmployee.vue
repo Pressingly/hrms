@@ -16,12 +16,7 @@
 						],
 					}"
 					v-model="showDialog"
-					@close="
-						() => {
-							session.logout.submit()
-							showDialog = false
-						}
-					"
+					@close="closeDialog"
 				/>
 			</div>
 		</ion-content>
@@ -32,7 +27,19 @@
 import { IonPage, IonContent } from "@ionic/vue"
 import { inject, ref } from "vue"
 import { Dialog } from "frappe-ui"
+import { mpassPortalUrl } from "@/data/session"
 
 const session = inject("$session")
 const showDialog = ref(true)
+
+// Under SSO the user stays signed in and goes back to the landing portal.
+function closeDialog() {
+	const portal = mpassPortalUrl()
+	if (portal) {
+		window.location.href = portal
+		return
+	}
+	session.logout.submit()
+	showDialog.value = false
+}
 </script>
