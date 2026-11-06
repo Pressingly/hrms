@@ -41,8 +41,8 @@ def get_boot():
 
 
 def mpass_logout_url():
-	"""The portal's logout under mPass SSO, where a frappe-only logout would sign the user
-	straight back in; None on a frappe without the Pressingly mPass layer or with SSO off."""
+	"""The landing portal under mPass SSO, where a frappe-only logout would sign the user
+	straight back in; None without the Pressingly mPass layer or with SSO off."""
 	try:
 		from frappe.mpass_sso import logout_redirect_url
 	except ImportError:
