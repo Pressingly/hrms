@@ -38,7 +38,7 @@ export const session = reactive({
 		url: "logout",
 		onSuccess() {
 			const portalLogout = window.frappe?.boot?.mpass_logout_url
-			if (portalLogout) {
+			if (typeof portalLogout === "string" && portalLogout.startsWith("http")) {
 				window.location.href = portalLogout
 				return
 			}

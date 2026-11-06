@@ -13,7 +13,7 @@
 
 		<script>
 			window.csrf_token = "{{ csrf_token }}";
-			window.mpass_logout_url = "{{ mpass_logout_url }}";
+			window.mpass_logout_url = {{ mpass_logout_url | tojson }};
 		</script>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
