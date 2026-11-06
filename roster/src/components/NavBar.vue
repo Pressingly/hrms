@@ -51,6 +51,11 @@ const props = defineProps<{
 const logout = createResource({
 	url: "logout",
 	onSuccess() {
+		const portalLogout = (window as Window & { mpass_logout_url?: string }).mpass_logout_url;
+		if (portalLogout) {
+			window.location.href = portalLogout;
+			return;
+		}
 		goTo("/login");
 	},
 	onError(error: { messages: string[] }) {

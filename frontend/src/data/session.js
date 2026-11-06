@@ -37,6 +37,12 @@ export const session = reactive({
 	logout: createResource({
 		url: "logout",
 		onSuccess() {
+			const portalLogout = window.frappe?.boot?.mpass_logout_url
+			if (portalLogout) {
+				window.location.href = portalLogout
+				return
+			}
+
 			userResource.reset()
 			employeeResource.reset()
 

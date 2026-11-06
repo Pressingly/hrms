@@ -32,11 +32,22 @@ def get_boot():
 		}
 	)
 
+	bootinfo.mpass_logout_url = mpass_logout_url() or ""
 	bootinfo.lang = frappe.local.lang
 	bootinfo.layout_direction = "rtl" if is_rtl() else "ltr"
 	load_translations(bootinfo)
 
 	return bootinfo
+
+
+def mpass_logout_url():
+	"""The portal's logout under mPass SSO, where a frappe-only logout would sign the user
+	straight back in; None on a frappe without the Pressingly mPass layer or with SSO off."""
+	try:
+		from frappe.mpass_sso import logout_redirect_url
+	except ImportError:
+		return None
+	return logout_redirect_url()
 
 
 def get_default_route():
