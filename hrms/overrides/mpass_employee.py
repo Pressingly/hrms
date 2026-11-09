@@ -24,6 +24,7 @@ class Outcome(StrEnum):
 	LINKED = "linked"
 	CREATED = "created"
 	NO_COMPANY = "no_company"
+	UNSUPPORTED_NAMING = "unsupported_naming"
 	AMBIGUOUS = "ambiguous"
 	FAILED = "failed"
 
@@ -40,8 +41,10 @@ def backfill_employees() -> dict[str, int]:
 		filters={"enabled": 1, "user_type": "System User", "name": ("not in", frappe.STANDARD_USERS)},
 		pluck="name",
 	)
-	outcomes = Counter(ensure_employee(user) for user in users)
-	frappe.db.commit()
+	outcomes = Counter()
+	for user in users:
+		outcomes[ensure_employee(user)] += 1
+		frappe.db.commit()
 	return dict(outcomes)
 
 
@@ -56,7 +59,7 @@ def ensure_employee(user: str) -> Outcome:
 	try:
 		outcome = link_or_create_employee(user)
 	except Exception:
-		frappe.db.rollback(save_point=SAVEPOINT)
+		restore_after_failure()
 		logger().exception(f"could not give {user} an Employee")
 		return Outcome.FAILED
 
@@ -64,6 +67,15 @@ def ensure_employee(user: str) -> Outcome:
 	if outcome not in (Outcome.LINKED, Outcome.CREATED):
 		logger().warning(f"no Employee for {user}: {outcome}")
 	return outcome
+
+
+def restore_after_failure() -> None:
+	"""A deadlock or MariaDB 1020 rolls the whole transaction back and takes the savepoint with it.
+	The session row is already committed, so a full rollback loses nothing of the login."""
+	try:
+		frappe.db.rollback(save_point=SAVEPOINT)
+	except Exception:
+		frappe.db.rollback()
 
 
 def is_eligible(user: str) -> bool:
@@ -80,6 +92,9 @@ def link_or_create_employee(user: str) -> Outcome:
 	if unlinked:
 		link_employee(unlinked[0], user)
 		return Outcome.LINKED
+
+	if not names_by_naming_series():
+		return Outcome.UNSUPPORTED_NAMING
 
 	company = default_company()
 	if not company:
@@ -101,6 +116,11 @@ def unlinked_employees_with_email(email: str | None) -> list[str]:
 	)
 
 
+def names_by_naming_series() -> bool:
+	"""The other naming methods need a unique full name or an employee number, which mPass lacks."""
+	return frappe.db.get_single_value("HR Settings", "emp_created_by") == "Naming Series"
+
+
 def default_company() -> str | None:
 	company = frappe.db.get_single_value("Global Defaults", "default_company")
 	if company:
@@ -111,14 +131,16 @@ def default_company() -> str | None:
 
 
 def link_employee(employee: str, user: str) -> None:
+	"""Linked and created Employees get no User Permission: one would hide every other Employee
+	from an HR or admin user."""
 	doc = frappe.get_doc("Employee", employee)
 	doc.user_id = user
+	doc.create_user_permission = 0
 	doc.flags.ignore_permissions = True
 	doc.save()
 
 
 def create_employee(user: str, company: str) -> None:
-	"""Without a User Permission: one would hide every other Employee from an HR or admin user."""
 	names = frappe.db.get_value("User", user, ["first_name", "last_name"], as_dict=True)
 	doc = frappe.new_doc("Employee")
 	doc.update(

@@ -85,6 +85,7 @@ class TestMpassEmployee(HRMSTestSuite):
 
 		self.assertEqual(ensure_employee(user), Outcome.LINKED)
 		self.assertEqual(employee_of(user).name, employee)
+		self.assertFalse(frappe.db.exists("User Permission", {"user": user}))
 
 	def test_two_unlinked_employees_with_the_email_are_left_alone(self):
 		user = make_user("mpass_ambiguous@example.com")
@@ -99,6 +100,13 @@ class TestMpassEmployee(HRMSTestSuite):
 		self.default_company.return_value = None
 
 		self.assertEqual(ensure_employee(user), Outcome.NO_COMPANY)
+		self.assertIsNone(employee_of(user))
+
+	def test_naming_other_than_the_series_creates_nothing(self):
+		user = make_user("mpass_full_name_naming@example.com")
+
+		with patch.object(mpass_employee, "names_by_naming_series", return_value=False):
+			self.assertEqual(ensure_employee(user), Outcome.UNSUPPORTED_NAMING)
 		self.assertIsNone(employee_of(user))
 
 	def test_standard_and_website_users_are_ineligible(self):
@@ -117,6 +125,16 @@ class TestMpassEmployee(HRMSTestSuite):
 
 		self.assertEqual(frappe.db.get_value("User", user, "bio"), "written before the hook")
 		self.assertIsNone(employee_of(user))
+
+	def test_a_transaction_lost_mid_insert_does_not_raise(self):
+		user = make_user("mpass_lost_transaction@example.com")
+
+		def lose_the_transaction(_user):
+			frappe.db.rollback()
+			raise frappe.QueryDeadlockError
+
+		with patch.object(mpass_employee, "link_or_create_employee", side_effect=lose_the_transaction):
+			self.assertEqual(ensure_employee(user), Outcome.FAILED)
 
 	def test_the_session_hook_runs_only_under_sso(self):
 		user = make_user("mpass_session_hook@example.com")
