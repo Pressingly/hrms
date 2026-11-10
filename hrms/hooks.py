@@ -104,6 +104,8 @@ jinja = {
 after_install = "hrms.install.after_install"
 after_migrate = "hrms.setup.update_select_perm_after_install"
 
+on_session_creation = "hrms.overrides.mpass_employee.ensure_employee_on_session_creation"
+
 setup_wizard_requires = "assets/hrms/js/setup_wizard.js"
 setup_wizard_stages = "hrms.setup_wizard.get_setup_stages"
 setup_wizard_complete = "hrms.subscription_utils.update_erpnext_access"
